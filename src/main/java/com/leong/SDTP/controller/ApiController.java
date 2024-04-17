@@ -1,6 +1,7 @@
 package com.leong.SDTP.controller;
 
 import com.leong.SDTP.model.Admission;
+import com.leong.SDTP.model.Employee;
 import com.leong.SDTP.model.Patient;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
@@ -14,7 +15,9 @@ import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 public class ApiController {
@@ -133,5 +136,63 @@ public class ApiController {
         }
 
         return admittedPatients;
+    }
+
+    @GetMapping("/f3")
+    public Employee getMostAdmissionsStuffID() {
+        Employee mostAdmissionsEmployee = null;
+
+        try {
+            String apiUrl = "https://web.socem.plymouth.ac.uk/COMP2005/api/Allocations";
+            HttpClient httpClient = HttpClients.createDefault();
+            HttpGet httpGet = new HttpGet(apiUrl);
+            HttpResponse response = httpClient.execute(httpGet);
+
+            if (response.getStatusLine().getStatusCode() == HttpStatus.OK.value()) {
+                String jsonResponse = EntityUtils.toString(response.getEntity());
+                JSONArray jsonArray = new JSONArray(jsonResponse);
+
+                // Count occurrences of employeeIDs
+                Map<Integer, Integer> employeeCountMap = new HashMap<>();
+                for (int i = 0; i < jsonArray.length(); i++) {
+                    JSONObject jsonObject = jsonArray.getJSONObject(i);
+                    int employeeID = jsonObject.getInt("employeeID");
+                    employeeCountMap.put(employeeID, employeeCountMap.getOrDefault(employeeID, 0) + 1);
+                }
+
+                // Find employeeID with the most occurrences
+                int maxCount = 0;
+                int mostAdmissionsStuffID = -1;
+                for (Map.Entry<Integer, Integer> entry : employeeCountMap.entrySet()) {
+                    if (entry.getValue() > maxCount) {
+                        maxCount = entry.getValue();
+                        mostAdmissionsStuffID = entry.getKey();
+                    }
+                }
+
+                // Fetch employee data using mostAdmissionsStuffID
+                apiUrl = "https://web.socem.plymouth.ac.uk/COMP2005/api/Employees/" + mostAdmissionsStuffID;
+                httpGet = new HttpGet(apiUrl);
+                response = httpClient.execute(httpGet);
+
+                if (response.getStatusLine().getStatusCode() == HttpStatus.OK.value()) {
+                    String employeeJson = EntityUtils.toString(response.getEntity());
+                    JSONObject employeeJsonObject = new JSONObject(employeeJson);
+                    mostAdmissionsEmployee = new Employee(
+                            employeeJsonObject.getInt("id"),
+                            employeeJsonObject.getString("surname"),
+                            employeeJsonObject.getString("forename")
+                    );
+                } else {
+                    System.err.println("HTTP request failed with response code: " + response.getStatusLine().getStatusCode());
+                }
+            } else {
+                System.err.println("HTTP request failed with response code: " + response.getStatusLine().getStatusCode());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return mostAdmissionsEmployee;
     }
 }
