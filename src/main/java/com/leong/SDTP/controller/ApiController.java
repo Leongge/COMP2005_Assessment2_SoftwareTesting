@@ -14,10 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @RestController
 public class ApiController {
@@ -194,5 +191,59 @@ public class ApiController {
         }
 
         return mostAdmissionsEmployee;
+    }
+
+    @GetMapping("/f4")
+    public List<Employee> getEmployeesNotInAllocations() {
+        List<Employee> employeesNotInAllocations = new ArrayList<>();
+
+        try {
+            String employeeApiUrl = "https://web.socem.plymouth.ac.uk/COMP2005/api/Employees";
+            HttpClient httpClient = HttpClients.createDefault();
+            HttpGet httpGet = new HttpGet(employeeApiUrl);
+            HttpResponse response = httpClient.execute(httpGet);
+
+            if (response.getStatusLine().getStatusCode() == HttpStatus.OK.value()) {
+                String employeeResponse = EntityUtils.toString(response.getEntity());
+                JSONArray employeeJsonArray = new JSONArray(employeeResponse);
+                Set<Integer> employeeIdsInAllocations = new HashSet<>();
+
+                // Fetch employee IDs from allocations
+                String allocationApiUrl = "https://web.socem.plymouth.ac.uk/COMP2005/api/Allocations";
+                httpGet = new HttpGet(allocationApiUrl);
+                response = httpClient.execute(httpGet);
+
+                if (response.getStatusLine().getStatusCode() == HttpStatus.OK.value()) {
+                    String allocationResponse = EntityUtils.toString(response.getEntity());
+                    JSONArray allocationJsonArray = new JSONArray(allocationResponse);
+
+                    // Fetch employee IDs from allocations
+                    for (int i = 0; i < allocationJsonArray.length(); i++) {
+                        JSONObject allocationJsonObject = allocationJsonArray.getJSONObject(i);
+                        employeeIdsInAllocations.add(allocationJsonObject.getInt("employeeID"));
+                    }
+                }
+
+                // Filter employees that are not in allocations
+                for (int i = 0; i < employeeJsonArray.length(); i++) {
+                    JSONObject employeeJsonObject = employeeJsonArray.getJSONObject(i);
+                    int employeeId = employeeJsonObject.getInt("id");
+                    if (!employeeIdsInAllocations.contains(employeeId)) {
+                        Employee employee = new Employee(
+                                employeeId,
+                                employeeJsonObject.getString("surname"),
+                                employeeJsonObject.getString("forename")
+                        );
+                        employeesNotInAllocations.add(employee);
+                    }
+                }
+            } else {
+                System.err.println("HTTP request failed with response code: " + response.getStatusLine().getStatusCode());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return employeesNotInAllocations;
     }
 }
