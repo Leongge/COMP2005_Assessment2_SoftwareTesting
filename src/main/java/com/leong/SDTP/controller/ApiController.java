@@ -19,56 +19,99 @@ import java.util.*;
 @RestController
 public class ApiController {
 
+    private HttpClient httpClient;
+
+    // Setter for HttpClient
+    public void setHttpClient(HttpClient httpClient) {
+        this.httpClient = httpClient;
+    }
     @GetMapping("/f1/{patientId}")
-    public List<Admission> showPatientInfo(@PathVariable final String patientId) {
-        List<Admission> admissions = new ArrayList<>();
+    public List<Object> showPatientInfo(@PathVariable final String patientId) {
+        List<Object> responseList = new ArrayList<>();
 
         try {
-            // URL for the API endpoint
-            String apiLink = "https://web.socem.plymouth.ac.uk/COMP2005/api/Admissions";
+            // URL for the Patient API endpoint
+            String patientApiLink = "https://web.socem.plymouth.ac.uk/COMP2005/api/patients/" + patientId;
 
             // Create HttpClient object
             HttpClient httpClient = HttpClients.createDefault();
 
             // Create HttpGet object with the URL
-            HttpGet httpGet = new HttpGet(apiLink);
+            HttpGet patientHttpGet = new HttpGet(patientApiLink);
 
-            // Execute the request
-            HttpResponse response = httpClient.execute(httpGet);
+            // Execute the request for Patient information
+            HttpResponse patientResponse = httpClient.execute(patientHttpGet);
 
-            // Check response status code
-            int statusCode = response.getStatusLine().getStatusCode();
-            if (statusCode == 200) {
-                // Parse JSON response
-                String jsonResponse = EntityUtils.toString(response.getEntity());
-                JSONArray jsonArray = new JSONArray(jsonResponse);
-                System.out.println(jsonArray);
+            // Check Patient response status code
+            int patientStatusCode = patientResponse.getStatusLine().getStatusCode();
+            if (patientStatusCode == 200) {
+                // Parse Patient JSON response
+                String patientJsonResponse = EntityUtils.toString(patientResponse.getEntity());
+                JSONObject patientJsonObject = new JSONObject(patientJsonResponse);
 
-                // Iterate through JSON array
-                for (int i = 0; i < jsonArray.length(); i++) {
-                    JSONObject jsonObject = jsonArray.getJSONObject(i);
+                // Check if patient exists
+                if (patientJsonObject.length() > 0) {
+                    // Parse patient information
+                    Patient patient = new Patient(
+                            patientJsonObject.getInt("id"),
+                            patientJsonObject.getString("surname"),
+                            patientJsonObject.getString("forename"),
+                            patientJsonObject.getString("nhsNumber")
+                    );
 
-                    // Check if patientID matches
-                    if (jsonObject.getInt("patientID") == Integer.parseInt(patientId)) {
-                        Admission admission = new Admission(
-                                jsonObject.getInt("id"),
-                                jsonObject.getString("admissionDate"),
-                                jsonObject.getString("dischargeDate"),
-                                jsonObject.getInt("patientID")
-                        );
-                        admissions.add(admission);
+                    responseList.add(patient);
+
+                    // URL for the Admissions API endpoint
+                    String admissionsApiLink = "https://web.socem.plymouth.ac.uk/COMP2005/api/Admissions";
+
+                    // Create HttpGet object with the URL
+                    HttpGet admissionsHttpGet = new HttpGet(admissionsApiLink);
+
+                    // Execute the request for Admissions information
+                    HttpResponse admissionsResponse = httpClient.execute(admissionsHttpGet);
+
+                    // Check Admissions response status code
+                    int admissionsStatusCode = admissionsResponse.getStatusLine().getStatusCode();
+                    if (admissionsStatusCode == 200) {
+                        // Parse Admissions JSON response
+                        String admissionsJsonResponse = EntityUtils.toString(admissionsResponse.getEntity());
+                        JSONArray admissionsJsonArray = new JSONArray(admissionsJsonResponse);
+
+                        // Iterate through Admissions JSON array
+                        for (int i = 0; i < admissionsJsonArray.length(); i++) {
+                            JSONObject admissionJsonObject = admissionsJsonArray.getJSONObject(i);
+
+                            // Check if admission belongs to the requested patient
+                            if (admissionJsonObject.getInt("patientID") == patient.getId()) {
+                                // Create Admission object
+                                Admission admission = new Admission(
+                                        admissionJsonObject.getInt("id"),
+                                        admissionJsonObject.getString("admissionDate"),
+                                        admissionJsonObject.getString("dischargeDate"),
+                                        admissionJsonObject.getInt("patientID")
+                                );
+
+                                responseList.add(admission);
+                            }
+                        }
+                    } else {
+                        // Handle non-OK Admissions response
+                        responseList.add("No admissions found");
                     }
+                } else {
+                    // Handle empty Patient response
+                    responseList.add("No patient found");
                 }
             } else {
-                // Handle non-OK response
-                System.err.println("HTTP request failed with response code: " + statusCode);
+                // Handle non-OK Patient response
+                responseList.add("Patient API request failed with response code: " + patientStatusCode);
             }
-
         } catch (Exception e) {
             e.printStackTrace();
+            responseList.add("An error occurred: " + e.getMessage());
         }
 
-        return admissions;
+        return responseList;
     }
 
     @PostMapping("/f2")
