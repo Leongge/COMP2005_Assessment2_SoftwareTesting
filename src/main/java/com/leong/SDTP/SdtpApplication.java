@@ -19,13 +19,42 @@ import java.net.URL;
 
 @SpringBootApplication
 public class SdtpApplication extends JFrame {
+	private URL apiUrl;
+
+	public JTextField getInputField() {
+		return inputField;
+	}
+
 	private JTextField inputField;
 	private JButton searchButton;
+
+	public JTextArea getResultArea() {
+		return resultArea;
+	}
+
 	private JTextArea resultArea;
 	private JLabel patientIdLabel;
+
+	public JLabel getSurnameLabel() {
+		return surnameLabel;
+	}
+
+	public JLabel getForenameLabel() {
+		return forenameLabel;
+	}
+
+	public JLabel getNhsnumberLabel() {
+		return nhsnumberLabel;
+	}
+
 	private JLabel surnameLabel;
 	private JLabel forenameLabel;
 	private JLabel nhsnumberLabel;
+
+	public JLabel getPatientIdLabel() {
+		return patientIdLabel;
+	}
+
 
 	public SdtpApplication() {
 		setTitle("Patient Search");
@@ -67,7 +96,7 @@ public class SdtpApplication extends JFrame {
 		patientIdLabel = new JLabel("Patient ID: ");
 		surnameLabel = new JLabel("Surname: ");
 		forenameLabel = new JLabel("Forename: ");
-		nhsnumberLabel = new JLabel("nhsnumberLabel: ");
+		nhsnumberLabel = new JLabel("NHS Number: ");
 		detailsPanel.add(patientIdLabel);
 		detailsPanel.add(surnameLabel);
 		detailsPanel.add(forenameLabel);
@@ -87,7 +116,6 @@ public class SdtpApplication extends JFrame {
 		add(mainPanel);
 	}
 
-
 	private void addListeners() {
 		searchButton.addActionListener(new ActionListener() {
 			@Override
@@ -102,7 +130,7 @@ public class SdtpApplication extends JFrame {
 		});
 	}
 
-	private void fetchAndDisplayData(String patientId) {
+	public void fetchAndDisplayData(String patientId) {
 		String apiUrl = "http://localhost:8080/f1/" + patientId;
 
 		try {
@@ -124,11 +152,6 @@ public class SdtpApplication extends JFrame {
 
 				if (jsonArray.length() > 0) {
 					JSONObject jsonObject = jsonArray.getJSONObject(0);
-//					String result = "Patient Details:\n" +
-//							"ID: " + jsonObject.getInt("id") + "\n" +
-//							"Surname: " + jsonObject.getString("surname") + "\n" +
-//							"Forename: " + jsonObject.getString("forename") + "\n" +
-//							"NHS Number: " + jsonObject.getString("nhsNumber");
 					patientIdLabel.setText("Patient ID: " + jsonObject.getInt("id"));
 					surnameLabel.setText("Surname: " + jsonObject.getString("surname"));
 					forenameLabel.setText("Forename: " + jsonObject.getString("forename"));

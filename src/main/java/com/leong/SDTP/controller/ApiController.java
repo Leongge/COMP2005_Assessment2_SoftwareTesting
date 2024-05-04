@@ -21,6 +21,11 @@ public class ApiController {
 
     private HttpClient httpClient;
 
+    @GetMapping("/f1")
+    public String hello(){
+        return "Please put the patient id";
+    }
+
     // Setter for HttpClient
     public void setHttpClient(HttpClient httpClient) {
         this.httpClient = httpClient;
@@ -114,9 +119,28 @@ public class ApiController {
         return responseList;
     }
 
+    static class AdmissionRecord {
+        private final Patient patient;
+        private final String dischargeDate;
+
+        public AdmissionRecord(Patient patient, String dischargeDate) {
+            this.patient = patient;
+            this.dischargeDate = dischargeDate;
+        }
+
+        public Patient getPatient() {
+            return patient;
+        }
+
+        public String getDischargeDate() {
+            return dischargeDate;
+        }
+
+    }
+
     @PostMapping("/f2")
-    public List<Patient> filterAdmissions(@RequestBody String dateJson) {
-        List<Patient> admittedPatients = new ArrayList<>();
+    public List<AdmissionRecord> filterAdmissions(@RequestBody String dateJson) {
+        List<AdmissionRecord> responseList = new ArrayList<>();
 
         try {
             // Parse the JSON input
@@ -129,7 +153,7 @@ public class ApiController {
             HttpGet httpGet = new HttpGet(admissionsUrl);
             HttpResponse response = httpClient.execute(httpGet);
 
-            if (response.getStatusLine().getStatusCode() == HttpStatus.OK.value()) {
+            if (response.getStatusLine().getStatusCode() == 200) {
                 String admissionsResponse = EntityUtils.toString(response.getEntity());
                 JSONArray admissionsArray = new JSONArray(admissionsResponse);
 
@@ -138,8 +162,8 @@ public class ApiController {
                     JSONObject admissionObject = admissionsArray.getJSONObject(i);
                     String dischargeDate = admissionObject.getString("dischargeDate");
 
-                    // Check if discharge date is after the input date
-                    if (dischargeDate.compareTo(date) > 0) {
+                    // Check if discharge date is after the input date or is "0001-01-01T00:00:00"
+                    if (dischargeDate.compareTo(date) > 0 || dischargeDate.equals("0001-01-01T00:00:00")) {
                         int patientID = admissionObject.getInt("patientID");
 
                         // Fetch patient data using patient ID
@@ -147,7 +171,7 @@ public class ApiController {
                         httpGet = new HttpGet(patientsUrl);
                         response = httpClient.execute(httpGet);
 
-                        if (response.getStatusLine().getStatusCode() == HttpStatus.OK.value()) {
+                        if (response.getStatusLine().getStatusCode() == 200) {
                             String patientsResponse = EntityUtils.toString(response.getEntity());
                             JSONArray patientsArray = new JSONArray(patientsResponse);
 
@@ -159,7 +183,8 @@ public class ApiController {
                                     String forename = patientObject.getString("forename");
                                     String nhsNumber = patientObject.getString("nhsNumber");
                                     Patient patient = new Patient(patientID, surname, forename, nhsNumber);
-                                    admittedPatients.add(patient);
+                                    AdmissionRecord admissionRecord = new AdmissionRecord(patient, dischargeDate);
+                                    responseList.add(admissionRecord);
                                     break;
                                 }
                             }
@@ -175,8 +200,9 @@ public class ApiController {
             e.printStackTrace();
         }
 
-        return admittedPatients;
+        return responseList;
     }
+
 
     @GetMapping("/f3")
     public Employee getMostAdmissionsStuffID() {
